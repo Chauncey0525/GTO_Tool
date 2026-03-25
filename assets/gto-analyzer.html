@@ -1,0 +1,1745 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GTO Wizard - 德州扑克策略分析</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #0f0f0f;
+            min-height: 100vh;
+            color: #fff;
+        }
+
+        /* Header */
+        .header {
+            background: #1a1a1a;
+            border-bottom: 1px solid #333;
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 24px;
+            font-weight: 700;
+            background: linear-gradient(90deg, #00d4ff, #00ff88);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 15px;
+        }
+
+        .header-btn {
+            padding: 8px 16px;
+            border: 1px solid #444;
+            background: transparent;
+            color: #fff;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+
+        .header-btn:hover {
+            border-color: #00d4ff;
+            color: #00d4ff;
+        }
+
+        .header-btn.primary {
+            background: #00d4ff;
+            border-color: #00d4ff;
+            color: #000;
+        }
+
+        /* Main Layout */
+        .main-container {
+            display: grid;
+            grid-template-columns: 300px 1fr 350px;
+            gap: 0;
+            height: calc(100vh - 60px);
+        }
+
+        /* Left Panel - Settings */
+        .left-panel {
+            background: #1a1a1a;
+            border-right: 1px solid #333;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .panel-section {
+            margin-bottom: 25px;
+        }
+
+        .section-title {
+            font-size: 12px;
+            font-weight: 600;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 12px;
+        }
+
+        /* Position Grid */
+        .position-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+        }
+
+        .position-btn {
+            padding: 10px 8px;
+            border: 1px solid #333;
+            background: #252525;
+            color: #aaa;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .position-btn:hover {
+            border-color: #555;
+            color: #fff;
+        }
+
+        .position-btn.selected {
+            background: #00d4ff;
+            border-color: #00d4ff;
+            color: #000;
+        }
+
+        /* Hero Hand Display */
+        .hero-hand-display {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 15px;
+            background: #252525;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+
+        .hero-cards {
+            display: flex;
+            gap: 8px;
+        }
+
+        .hero-card {
+            width: 48px;
+            height: 68px;
+            background: #fff;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            font-weight: bold;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        .hero-card.empty {
+            background: #333;
+            color: #666;
+            border: 2px dashed #444;
+        }
+
+        .hero-card.red { color: #dc3545; }
+        .hero-card.black { color: #212529; }
+
+        .hero-label {
+            font-size: 12px;
+            color: #888;
+            text-transform: uppercase;
+        }
+
+        .hero-position {
+            font-size: 16px;
+            font-weight: 600;
+            color: #ffd700;
+        }
+
+        /* Board Cards */
+        .board-display {
+            display: flex;
+            gap: 8px;
+            padding: 15px;
+            background: #252525;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+
+        .board-card {
+            width: 44px;
+            height: 62px;
+            background: #fff;
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            font-weight: bold;
+        }
+
+        .board-card.empty {
+            background: #333;
+            color: #555;
+            border: 2px dashed #444;
+        }
+
+        .board-card.red { color: #dc3545; }
+        .board-card.black { color: #212529; }
+
+        /* Action Input Section */
+        .action-input-section {
+            background: #252525;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+
+        .action-input-row {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 10px;
+            align-items: center;
+        }
+
+        .action-input-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .action-select {
+            flex: 1;
+            padding: 8px 12px;
+            border: 1px solid #333;
+            background: #1a1a1a;
+            color: #fff;
+            border-radius: 6px;
+            font-size: 13px;
+        }
+
+        .action-select:focus {
+            outline: none;
+            border-color: #00d4ff;
+        }
+
+        .action-input {
+            width: 80px;
+            padding: 8px 10px;
+            border: 1px solid #333;
+            background: #1a1a1a;
+            color: #fff;
+            border-radius: 6px;
+            font-size: 13px;
+            text-align: center;
+        }
+
+        .action-input:focus {
+            outline: none;
+            border-color: #00d4ff;
+        }
+
+        .add-action-btn {
+            width: 32px;
+            height: 32px;
+            border: none;
+            background: #28a745;
+            color: #fff;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .add-action-btn:hover {
+            background: #218838;
+        }
+
+        .remove-action-btn {
+            width: 28px;
+            height: 28px;
+            border: none;
+            background: #dc3545;
+            color: #fff;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .remove-action-btn:hover {
+            background: #c82333;
+        }
+
+        /* Action Sequence Display */
+        .action-sequence {
+            background: #1a1a1a;
+            border-radius: 6px;
+            padding: 12px;
+            margin-top: 10px;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+
+        .action-sequence-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 0;
+            border-bottom: 1px solid #333;
+            font-size: 12px;
+        }
+
+        .action-sequence-item:last-child {
+            border-bottom: none;
+        }
+
+        .action-sequence-item .player {
+            color: #00d4ff;
+            font-weight: 500;
+        }
+
+        .action-sequence-item .action {
+            color: #aaa;
+        }
+
+        .action-sequence-item .amount {
+            color: #ffd700;
+            font-weight: 500;
+        }
+
+        /* Center Panel - Table */
+        .center-panel {
+            display: flex;
+            flex-direction: column;
+            background: #0f0f0f;
+        }
+
+        /* Poker Table */
+        .table-container {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .poker-table {
+            width: 100%;
+            max-width: 700px;
+            aspect-ratio: 1.6;
+            background: radial-gradient(ellipse at center, #1a472a 0%, #0d2818 100%);
+            border-radius: 50%;
+            border: 12px solid #2a1810;
+            box-shadow: 
+                inset 0 0 50px rgba(0, 0, 0, 0.5),
+                0 0 30px rgba(0, 0, 0, 0.8);
+            position: relative;
+        }
+
+        /* Player Positions on Table */
+        .table-player {
+            position: absolute;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            transform: translate(-50%, -50%);
+        }
+
+        .player-avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: #333;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 600;
+            border: 3px solid #444;
+            transition: all 0.3s;
+        }
+
+        .player-avatar.hero {
+            border-color: #00ff88;
+            box-shadow: 0 0 15px rgba(0, 255, 136, 0.4);
+        }
+
+        .player-avatar.folded {
+            opacity: 0.3;
+        }
+
+        .player-cards {
+            display: flex;
+            gap: 3px;
+            margin-top: 5px;
+        }
+
+        .mini-card {
+            width: 28px;
+            height: 36px;
+            border-radius: 3px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: bold;
+        }
+
+        .mini-card.face-down {
+            background: linear-gradient(135deg, #1e3a5f 0%, #0d1b2a 100%);
+            border: 1px solid #2d4a6f;
+        }
+
+        .mini-card.face-down::before {
+            content: '?';
+            color: #4a7aa8;
+            font-size: 14px;
+        }
+
+        .mini-card.red { background: #fff; color: #dc3545; }
+        .mini-card.black { background: #fff; color: #212529; }
+
+        .player-info {
+            text-align: center;
+            margin-top: 5px;
+        }
+
+        .player-name {
+            font-size: 11px;
+            font-weight: 600;
+            color: #fff;
+        }
+
+        .player-name.hero-name {
+            color: #00ff88;
+        }
+
+        .player-stack {
+            font-size: 10px;
+            color: #00ff88;
+        }
+
+        .player-bet {
+            font-size: 10px;
+            color: #ffd700;
+            font-weight: 500;
+        }
+
+        /* Community Cards */
+        .community-cards {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            display: flex;
+            gap: 8px;
+        }
+
+        .community-card {
+            width: 50px;
+            height: 70px;
+            background: #fff;
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            font-weight: bold;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        .community-card.empty {
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px dashed #444;
+        }
+
+        .community-card.red { color: #dc3545; }
+        .community-card.black { color: #212529; }
+
+        /* Pot Display */
+        .pot-display {
+            position: absolute;
+            top: 35%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.7);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .pot-display span {
+            color: #ffd700;
+        }
+
+        /* Phase Indicator */
+        .phase-indicator {
+            position: absolute;
+            bottom: 15%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 212, 255, 0.2);
+            border: 1px solid #00d4ff;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            color: #00d4ff;
+            text-transform: uppercase;
+        }
+
+        /* Action Panel - Now for applying user-defined actions */
+        .action-panel {
+            background: #1a1a1a;
+            border-top: 1px solid #333;
+            padding: 15px 20px;
+        }
+
+        .action-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .current-turn {
+            font-size: 14px;
+        }
+
+        .current-turn .position {
+            color: #ffd700;
+            font-weight: 600;
+        }
+
+        .bet-info {
+            font-size: 13px;
+            color: #888;
+        }
+
+        .bet-info span {
+            color: #ffd700;
+        }
+
+        /* Right Panel - GTO Strategy */
+        .right-panel {
+            background: #1a1a1a;
+            border-left: 1px solid #333;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        /* Strategy Matrix */
+        .strategy-matrix {
+            display: grid;
+            grid-template-columns: repeat(13, 1fr);
+            gap: 2px;
+            margin-bottom: 20px;
+        }
+
+        .matrix-cell {
+            aspect-ratio: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 8px;
+            font-weight: 600;
+            border-radius: 2px;
+            cursor: pointer;
+            transition: all 0.15s;
+            position: relative;
+        }
+
+        .matrix-cell:hover {
+            transform: scale(1.2);
+            z-index: 10;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+        }
+
+        .matrix-cell.selected {
+            box-shadow: 0 0 0 2px #fff;
+        }
+
+        /* Strategy Colors */
+        .strategy-fold { background: #dc3545; color: #fff; }
+        .strategy-call { background: #28a745; color: #fff; }
+        .strategy-raise { background: #fd7e14; color: #fff; }
+        .strategy-mix { 
+            background: linear-gradient(135deg, #28a745 50%, #fd7e14 50%);
+            color: #fff;
+        }
+
+        /* Strategy Legend */
+        .strategy-legend {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+        }
+
+        .legend-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 3px;
+        }
+
+        /* Strategy Details */
+        .strategy-details {
+            background: #252525;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+
+        .strategy-title {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+
+        .strategy-bar-container {
+            margin-bottom: 10px;
+        }
+
+        .strategy-bar-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            margin-bottom: 4px;
+        }
+
+        .strategy-bar {
+            height: 24px;
+            border-radius: 4px;
+            display: flex;
+            overflow: hidden;
+        }
+
+        .strategy-bar-segment {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: 600;
+            color: #fff;
+        }
+
+        /* EV Display */
+        .ev-display {
+            background: #252525;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+
+        .ev-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #333;
+        }
+
+        .ev-row:last-child {
+            border-bottom: none;
+        }
+
+        .ev-action {
+            font-size: 13px;
+            color: #aaa;
+        }
+
+        .ev-value {
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .ev-value.positive { color: #00ff88; }
+        .ev-value.negative { color: #ff6b6b; }
+
+        /* History */
+        .history-panel {
+            background: #252525;
+            border-radius: 8px;
+            padding: 15px;
+        }
+
+        .history-title {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        .history-item {
+            padding: 6px 0;
+            font-size: 12px;
+            color: #aaa;
+            border-bottom: 1px solid #333;
+        }
+
+        .history-item:last-child {
+            border-bottom: none;
+        }
+
+        .history-item .position {
+            color: #00d4ff;
+            font-weight: 500;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-overlay.show {
+            display: flex;
+        }
+
+        .modal {
+            background: #1a1a1a;
+            border-radius: 12px;
+            padding: 25px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .modal-btn {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .modal-btn.cancel {
+            background: #333;
+            color: #fff;
+        }
+
+        .modal-btn.confirm {
+            background: #00d4ff;
+            color: #000;
+        }
+
+        /* Card Grid in Modal */
+        .card-select-grid {
+            display: grid;
+            grid-template-columns: repeat(13, 1fr);
+            gap: 4px;
+        }
+
+        .card-select-cell {
+            aspect-ratio: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .card-select-cell.spade, .card-select-cell.club {
+            background: #2a2a2a;
+            color: #fff;
+        }
+
+        .card-select-cell.heart, .card-select-cell.diamond {
+            background: #3a1a1a;
+            color: #ff6b6b;
+        }
+
+        .card-select-cell:hover:not(.used) {
+            transform: scale(1.1);
+            z-index: 1;
+        }
+
+        .card-select-cell.selected {
+            box-shadow: 0 0 0 2px #00ff88;
+        }
+
+        .card-select-cell.used {
+            opacity: 0.2;
+            cursor: not-allowed;
+        }
+
+        /* Apply Button */
+        .apply-actions-btn {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(90deg, #00d4ff, #00ff88);
+            border: none;
+            border-radius: 8px;
+            color: #000;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .apply-actions-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 212, 255, 0.3);
+        }
+
+        .apply-actions-btn:disabled {
+            background: #444;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        /* Responsive */
+        @media (max-width: 1200px) {
+            .main-container {
+                grid-template-columns: 1fr;
+            }
+            
+            .left-panel, .right-panel {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="logo">GTO Wizard</div>
+        <div class="header-actions">
+            <button class="header-btn" id="resetBtn">重置</button>
+            <button class="header-btn primary" id="newHandBtn">新一手</button>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <div class="main-container">
+        <!-- Left Panel -->
+        <div class="left-panel">
+            <div class="panel-section">
+                <div class="section-title">Hero 位置</div>
+                <div class="position-grid" id="heroPositionGrid">
+                    <button class="position-btn" data-position="UTG">UTG</button>
+                    <button class="position-btn" data-position="HJ">HJ</button>
+                    <button class="position-btn" data-position="CO">CO</button>
+                    <button class="position-btn selected" data-position="BTN">BTN</button>
+                    <button class="position-btn" data-position="SB">SB</button>
+                    <button class="position-btn" data-position="BB">BB</button>
+                </div>
+            </div>
+
+            <div class="panel-section">
+                <div class="section-title">Hero 手牌</div>
+                <div class="hero-hand-display">
+                    <div>
+                        <div class="hero-label">位置</div>
+                        <div class="hero-position" id="heroPositionDisplay">BTN</div>
+                    </div>
+                    <div class="hero-cards" id="heroCardsDisplay">
+                        <div class="hero-card empty">?</div>
+                        <div class="hero-card empty">?</div>
+                    </div>
+                </div>
+                <button class="header-btn" id="selectHeroCards" style="width: 100%;">选择手牌</button>
+            </div>
+
+            <div class="panel-section">
+                <div class="section-title">公共牌</div>
+                <div class="board-display" id="boardDisplay">
+                    <div class="board-card empty"></div>
+                    <div class="board-card empty"></div>
+                    <div class="board-card empty"></div>
+                    <div class="board-card empty"></div>
+                    <div class="board-card empty"></div>
+                </div>
+                <button class="header-btn" id="setBoardBtn" style="width: 100%;">设置公共牌</button>
+            </div>
+
+            <div class="panel-section">
+                <div class="section-title">玩家人数</div>
+                <div class="position-grid" style="grid-template-columns: repeat(4, 1fr);">
+                    <button class="position-btn" data-count="2">2</button>
+                    <button class="position-btn" data-count="3">3</button>
+                    <button class="position-btn" data-count="4">4</button>
+                    <button class="position-btn" data-count="5">5</button>
+                    <button class="position-btn selected" data-count="6">6</button>
+                </div>
+            </div>
+
+            <!-- Action Input Section -->
+            <div class="panel-section">
+                <div class="section-title">行动路线输入</div>
+                <div class="action-input-section">
+                    <div id="actionInputs">
+                        <div class="action-input-row">
+                            <select class="action-select player-select">
+                                <option value="">选择玩家</option>
+                            </select>
+                            <select class="action-select action-type-select">
+                                <option value="">选择行动</option>
+                                <option value="fold">Fold</option>
+                                <option value="check">Check</option>
+                                <option value="call">Call</option>
+                                <option value="raise">Raise</option>
+                                <option value="allin">All-In</option>
+                            </select>
+                            <input type="number" class="action-input amount-input" placeholder="金额" disabled>
+                            <button class="add-action-btn">+</button>
+                        </div>
+                    </div>
+                    <div class="action-sequence" id="actionSequenceDisplay" style="display: none;">
+                        <div style="color: #888; font-size: 11px; margin-bottom: 8px;">已输入的行动:</div>
+                    </div>
+                    <button class="apply-actions-btn" id="applyActionsBtn" style="margin-top: 10px;">应用行动</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Center Panel -->
+        <div class="center-panel">
+            <div class="table-container">
+                <div class="poker-table" id="pokerTable">
+                    <div class="pot-display">底池: <span id="potAmount">1.5</span> bb</div>
+                    <div class="community-cards" id="communityCards">
+                        <div class="community-card empty"></div>
+                        <div class="community-card empty"></div>
+                        <div class="community-card empty"></div>
+                        <div class="community-card empty"></div>
+                        <div class="community-card empty"></div>
+                    </div>
+                    <div class="phase-indicator" id="phaseIndicator">PREFLOP</div>
+                </div>
+            </div>
+
+            <div class="action-panel">
+                <div class="action-header">
+                    <div class="current-turn">
+                        牌局状态: <span class="position" id="gameStatus">等待输入行动</span>
+                    </div>
+                    <div class="bet-info">
+                        当前下注: <span id="currentBetDisplay">1</span> bb | 需跟注: <span id="callAmountDisplay">1</span> bb
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Panel - GTO Strategy -->
+        <div class="right-panel">
+            <div class="panel-section">
+                <div class="section-title">GTO 策略矩阵</div>
+                <div class="strategy-legend">
+                    <div class="legend-item">
+                        <div class="legend-color strategy-fold"></div>
+                        <span>Fold</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color strategy-call"></div>
+                        <span>Call</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color strategy-raise"></div>
+                        <span>Raise</span>
+                    </div>
+                </div>
+                <div class="strategy-matrix" id="strategyMatrix"></div>
+            </div>
+
+            <div class="strategy-details">
+                <div class="strategy-title" id="strategyHandTitle">当前手牌策略</div>
+                <div class="strategy-bar-container">
+                    <div class="strategy-bar-label">
+                        <span>Fold</span>
+                        <span id="foldPct">15%</span>
+                    </div>
+                    <div class="strategy-bar">
+                        <div class="strategy-bar-segment strategy-fold" id="foldBar" style="width: 15%;"></div>
+                    </div>
+                </div>
+                <div class="strategy-bar-container">
+                    <div class="strategy-bar-label">
+                        <span>Call</span>
+                        <span id="callPct">35%</span>
+                    </div>
+                    <div class="strategy-bar">
+                        <div class="strategy-bar-segment strategy-call" id="callBar" style="width: 35%;"></div>
+                    </div>
+                </div>
+                <div class="strategy-bar-container">
+                    <div class="strategy-bar-label">
+                        <span>Raise</span>
+                        <span id="raisePct">50%</span>
+                    </div>
+                    <div class="strategy-bar">
+                        <div class="strategy-bar-segment strategy-raise" id="raiseBar" style="width: 50%;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="ev-display">
+                <div class="strategy-title">期望值 (EV)</div>
+                <div class="ev-row">
+                    <span class="ev-action">Fold</span>
+                    <span class="ev-value" id="evFold">0.00 bb</span>
+                </div>
+                <div class="ev-row">
+                    <span class="ev-action">Call</span>
+                    <span class="ev-value positive" id="evCall">+1.25 bb</span>
+                </div>
+                <div class="ev-row">
+                    <span class="ev-action">Raise</span>
+                    <span class="ev-value positive" id="evRaise">+2.50 bb</span>
+                </div>
+            </div>
+
+            <div class="history-panel">
+                <div class="history-title">行动历史</div>
+                <div id="historyList"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Card Selection Modal -->
+    <div class="modal-overlay" id="cardModal">
+        <div class="modal">
+            <div class="modal-title" id="modalTitle">选择卡牌</div>
+            <div id="modalCardGrid"></div>
+            <div class="modal-actions">
+                <button class="modal-btn cancel" id="modalCancel">取消</button>
+                <button class="modal-btn confirm" id="modalConfirm">确认</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Game State
+        const gameState = {
+            phase: 'preflop',
+            playerCount: 6,
+            heroPosition: 'BTN',
+            heroCards: [],
+            players: [],
+            communityCards: [],
+            pot: 1.5,
+            currentBet: 1,
+            history: [],
+            usedCards: new Set(),
+            actionSequence: []
+        };
+
+        // Position Configuration for different player counts
+        const POSITION_CONFIG = {
+            2: ['BTN', 'BB'],
+            3: ['BTN', 'SB', 'BB'],
+            4: ['BTN', 'SB', 'BB', 'CO'],
+            5: ['BTN', 'SB', 'BB', 'CO', 'HJ'],
+            6: ['BTN', 'SB', 'BB', 'UTG', 'HJ', 'CO']
+        };
+
+        // Position coordinates on table (percentage)
+        const POSITION_COORDS = {
+            'BTN': { x: 85, y: 50 },
+            'SB': { x: 65, y: 85 },
+            'BB': { x: 35, y: 85 },
+            'UTG': { x: 15, y: 50 },
+            'HJ': { x: 35, y: 15 },
+            'CO': { x: 65, y: 15 }
+        };
+
+        // Card deck
+        const SUITS = ['♠', '♥', '♦', '♣'];
+        const RANKS = ['A', 'K', 'Q', 'J', 'T', '9', '8', '7', '6', '5', '4', '3', '2'];
+
+        // Initialize
+        function init() {
+            initPlayers();
+            renderStrategyMatrix();
+            renderPlayersOnTable();
+            bindEvents();
+            updateUI();
+        }
+
+        // Initialize Players
+        function initPlayers() {
+            const positions = POSITION_CONFIG[gameState.playerCount];
+            gameState.players = positions.map((pos, index) => ({
+                id: index,
+                position: pos,
+                isHero: pos === gameState.heroPosition,
+                stack: 1000,
+                cards: pos === gameState.heroPosition ? gameState.heroCards : [],
+                folded: false,
+                currentBet: pos === 'SB' ? 0.5 : (pos === 'BB' ? 1 : 0),
+                totalBet: pos === 'SB' ? 0.5 : (pos === 'BB' ? 1 : 0),
+                isAllIn: false
+            }));
+
+            gameState.pot = 1.5;
+            gameState.currentBet = 1;
+            gameState.history = [];
+            gameState.actionSequence = [];
+            
+            updatePlayerSelects();
+        }
+
+        // Update player selects in action input
+        function updatePlayerSelects() {
+            const selects = document.querySelectorAll('.player-select');
+            const options = gameState.players
+                .filter(p => !p.folded)
+                .map(p => `<option value="${p.position}">${p.isHero ? 'HERO' : p.position}</option>`)
+                .join('');
+            
+            selects.forEach(select => {
+                const currentValue = select.value;
+                select.innerHTML = '<option value="">选择玩家</option>' + options;
+                if (currentValue && gameState.players.find(p => p.position === currentValue && !p.folded)) {
+                    select.value = currentValue;
+                }
+            });
+        }
+
+        // Render Strategy Matrix
+        function renderStrategyMatrix() {
+            const container = document.getElementById('strategyMatrix');
+            container.innerHTML = '';
+            
+            for (let i = 0; i < 13; i++) {
+                for (let j = 0; j < 13; j++) {
+                    const cell = document.createElement('div');
+                    
+                    const r1 = RANKS[i];
+                    const r2 = RANKS[j];
+                    let hand, strategy;
+                    
+                    if (i === j) {
+                        hand = `${r1}${r2}`;
+                        strategy = i < 4 ? 'strategy-raise' : i < 8 ? 'strategy-call' : 'strategy-fold';
+                    } else if (i < j) {
+                        hand = `${r1}${r2}s`;
+                        strategy = i < 3 && j < 6 ? 'strategy-raise' : 
+                                   i < 6 ? 'strategy-call' : 'strategy-fold';
+                    } else {
+                        hand = `${r2}${r1}o`;
+                        strategy = i < 2 && j > 10 ? 'strategy-raise' : 
+                                   i < 5 && j > 7 ? 'strategy-call' : 'strategy-fold';
+                    }
+                    
+                    const isHeroHand = gameState.heroCards.length === 2 && 
+                        checkHandMatch(gameState.heroCards, hand);
+                    
+                    cell.className = `matrix-cell ${strategy} ${isHeroHand ? 'selected' : ''}`;
+                    cell.textContent = hand;
+                    cell.dataset.hand = hand;
+                    cell.title = `${hand} - ${strategy.replace('strategy-', '')}`;
+                    
+                    container.appendChild(cell);
+                }
+            }
+        }
+
+        // Check if cards match hand notation
+        function checkHandMatch(cards, hand) {
+            if (cards.length !== 2) return false;
+            
+            const ranks = cards.map(c => c[0]).sort((a, b) => RANKS.indexOf(a) - RANKS.indexOf(b));
+            const suits = cards.map(c => c[1]);
+            const isSuited = suits[0] === suits[1];
+            
+            const handRanks = hand.slice(0, 2).split('');
+            const handType = hand.length > 2 ? hand[2] : (handRanks[0] === handRanks[1] ? '' : 'o');
+            
+            if (handRanks[0] === handRanks[1]) {
+                return ranks[0] === ranks[1] && ranks[0] === handRanks[0];
+            } else if (handType === 's') {
+                return isSuited && ranks.includes(handRanks[0]) && ranks.includes(handRanks[1]);
+            } else {
+                return !isSuited && ranks.includes(handRanks[0]) && ranks.includes(handRanks[1]);
+            }
+        }
+
+        // Render Players on Table
+        function renderPlayersOnTable() {
+            const table = document.getElementById('pokerTable');
+            
+            table.querySelectorAll('.table-player').forEach(el => el.remove());
+            
+            gameState.players.forEach((player, index) => {
+                const coords = POSITION_COORDS[player.position];
+                if (!coords) return;
+                
+                const playerEl = document.createElement('div');
+                playerEl.className = 'table-player';
+                playerEl.style.left = `${coords.x}%`;
+                playerEl.style.top = `${coords.y}%`;
+                playerEl.id = `player-${index}`;
+                
+                const isHero = player.isHero;
+                
+                let cardsHtml = '';
+                if (isHero && player.cards.length === 2) {
+                    const card1 = player.cards[0];
+                    const card2 = player.cards[1];
+                    const isRed1 = card1.includes('♥') || card1.includes('♦');
+                    const isRed2 = card2.includes('♥') || card2.includes('♦');
+                    cardsHtml = `
+                        <div class="mini-card ${isRed1 ? 'red' : 'black'}">${card1}</div>
+                        <div class="mini-card ${isRed2 ? 'red' : 'black'}">${card2}</div>
+                    `;
+                } else {
+                    cardsHtml = `
+                        <div class="mini-card face-down"></div>
+                        <div class="mini-card face-down"></div>
+                    `;
+                }
+                
+                playerEl.innerHTML = `
+                    <div class="player-avatar ${isHero ? 'hero' : ''} ${player.folded ? 'folded' : ''}">${player.position}</div>
+                    <div class="player-cards">${cardsHtml}</div>
+                    <div class="player-info">
+                        <div class="player-name ${isHero ? 'hero-name' : ''}">${isHero ? 'HERO' : player.position}</div>
+                        <div class="player-stack">${player.stack.toFixed(1)} bb</div>
+                        ${player.currentBet > 0 ? `<div class="player-bet">下注: ${player.currentBet.toFixed(1)}</div>` : ''}
+                    </div>
+                `;
+                
+                table.appendChild(playerEl);
+            });
+        }
+
+        // Bind Events
+        function bindEvents() {
+            // Hero position selection
+            document.getElementById('heroPositionGrid').addEventListener('click', (e) => {
+                if (e.target.classList.contains('position-btn')) {
+                    gameState.heroPosition = e.target.dataset.position;
+                    document.querySelectorAll('#heroPositionGrid .position-btn').forEach(btn => {
+                        btn.classList.toggle('selected', btn.dataset.position === gameState.heroPosition);
+                    });
+                    document.getElementById('heroPositionDisplay').textContent = gameState.heroPosition;
+                    initPlayers();
+                    renderPlayersOnTable();
+                    updateUI();
+                }
+            });
+
+            // Player count
+            document.querySelectorAll('[data-count]').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const count = parseInt(e.target.dataset.count);
+                    if (count) {
+                        gameState.playerCount = count;
+                        document.querySelectorAll('[data-count]').forEach(b => {
+                            b.classList.toggle('selected', parseInt(b.dataset.count) === count);
+                        });
+                        initPlayers();
+                        renderPlayersOnTable();
+                        updateUI();
+                    }
+                });
+            });
+
+            // Card selection
+            document.getElementById('selectHeroCards').addEventListener('click', () => {
+                showCardModal('hero');
+            });
+            
+            document.getElementById('setBoardBtn').addEventListener('click', () => {
+                showCardModal('board');
+            });
+
+            // Modal
+            document.getElementById('modalCancel').addEventListener('click', hideCardModal);
+            document.getElementById('modalConfirm').addEventListener('click', confirmCardSelection);
+
+            // Header buttons
+            document.getElementById('resetBtn').addEventListener('click', resetGame);
+            document.getElementById('newHandBtn').addEventListener('click', resetGame);
+
+            // Action input handling
+            document.getElementById('actionInputs').addEventListener('click', handleActionInputClick);
+            document.getElementById('actionInputs').addEventListener('change', handleActionInputChange);
+            
+            // Apply actions button
+            document.getElementById('applyActionsBtn').addEventListener('click', applyActions);
+        }
+
+        // Handle action input clicks (add/remove buttons)
+        function handleActionInputClick(e) {
+            if (e.target.classList.contains('add-action-btn')) {
+                const row = e.target.closest('.action-input-row');
+                const newRow = document.createElement('div');
+                newRow.className = 'action-input-row';
+                newRow.innerHTML = `
+                    <select class="action-select player-select">
+                        <option value="">选择玩家</option>
+                    </select>
+                    <select class="action-select action-type-select">
+                        <option value="">选择行动</option>
+                        <option value="fold">Fold</option>
+                        <option value="check">Check</option>
+                        <option value="call">Call</option>
+                        <option value="raise">Raise</option>
+                        <option value="allin">All-In</option>
+                    </select>
+                    <input type="number" class="action-input amount-input" placeholder="金额" disabled>
+                    <button class="remove-action-btn">×</button>
+                `;
+                row.parentNode.insertBefore(newRow, row.nextSibling);
+                updatePlayerSelects();
+            } else if (e.target.classList.contains('remove-action-btn')) {
+                const rows = document.querySelectorAll('.action-input-row');
+                if (rows.length > 1) {
+                    e.target.closest('.action-input-row').remove();
+                }
+            }
+        }
+
+        // Handle action input changes
+        function handleActionInputChange(e) {
+            if (e.target.classList.contains('action-type-select')) {
+                const row = e.target.closest('.action-input-row');
+                const amountInput = row.querySelector('.amount-input');
+                const actionType = e.target.value;
+                
+                if (actionType === 'raise') {
+                    amountInput.disabled = false;
+                    amountInput.placeholder = '加注到';
+                } else if (actionType === 'allin') {
+                    amountInput.disabled = false;
+                    amountInput.placeholder = '金额';
+                } else {
+                    amountInput.disabled = true;
+                    amountInput.value = '';
+                }
+            }
+        }
+
+        // Apply actions
+        function applyActions() {
+            const rows = document.querySelectorAll('.action-input-row');
+            const actions = [];
+            
+            rows.forEach(row => {
+                const player = row.querySelector('.player-select').value;
+                const action = row.querySelector('.action-type-select').value;
+                const amount = row.querySelector('.amount-input').value;
+                
+                if (player && action) {
+                    actions.push({ player, action, amount: parseFloat(amount) || 0 });
+                }
+            });
+            
+            if (actions.length === 0) {
+                alert('请输入至少一个行动');
+                return;
+            }
+            
+            // Apply each action
+            actions.forEach(act => {
+                applyAction(act);
+            });
+            
+            // Update display
+            renderPlayersOnTable();
+            updateUI();
+            updateActionSequenceDisplay(actions);
+        }
+
+        // Apply single action
+        function applyAction(act) {
+            const player = gameState.players.find(p => p.position === act.player);
+            if (!player) return;
+            
+            const playerDisplay = player.isHero ? 'HERO' : player.position;
+            
+            switch(act.action) {
+                case 'fold':
+                    player.folded = true;
+                    addHistory(`${playerDisplay} Fold`);
+                    break;
+                    
+                case 'check':
+                    addHistory(`${playerDisplay} Check`);
+                    break;
+                    
+                case 'call':
+                    const callAmount = gameState.currentBet - player.currentBet;
+                    player.stack -= callAmount;
+                    player.totalBet += callAmount;
+                    player.currentBet = gameState.currentBet;
+                    gameState.pot += callAmount;
+                    addHistory(`${playerDisplay} Call ${callAmount.toFixed(1)}bb`);
+                    break;
+                    
+                case 'raise':
+                    const raiseTo = act.amount || gameState.currentBet * 2;
+                    const additional = raiseTo - player.currentBet;
+                    player.stack -= additional;
+                    player.totalBet += additional;
+                    player.currentBet = raiseTo;
+                    gameState.pot += additional;
+                    gameState.currentBet = raiseTo;
+                    addHistory(`${playerDisplay} Raise to ${raiseTo.toFixed(1)}bb`);
+                    break;
+                    
+                case 'allin':
+                    const allInAmount = player.stack + player.currentBet;
+                    gameState.pot += player.stack;
+                    player.totalBet += player.stack;
+                    player.currentBet = allInAmount;
+                    player.stack = 0;
+                    player.isAllIn = true;
+                    if (allInAmount > gameState.currentBet) {
+                        gameState.currentBet = allInAmount;
+                    }
+                    addHistory(`${playerDisplay} All-In ${allInAmount.toFixed(1)}bb`);
+                    break;
+            }
+            
+            updatePlayerSelects();
+        }
+
+        // Update action sequence display
+        function updateActionSequenceDisplay(actions) {
+            const display = document.getElementById('actionSequenceDisplay');
+            display.style.display = 'block';
+            
+            let html = '<div style="color: #888; font-size: 11px; margin-bottom: 8px;">已输入的行动:</div>';
+            actions.forEach((act, index) => {
+                const player = gameState.players.find(p => p.position === act.player);
+                const playerDisplay = player && player.isHero ? 'HERO' : act.player;
+                let actionText = act.action.toUpperCase();
+                if (act.amount) {
+                    actionText += ` ${act.amount}bb`;
+                }
+                html += `<div class="action-sequence-item">
+                    <span class="player">${playerDisplay}</span>
+                    <span class="action">${actionText}</span>
+                </div>`;
+            });
+            display.innerHTML = html;
+        }
+
+        // Add history entry
+        function addHistory(text) {
+            gameState.history.push(text);
+            const container = document.getElementById('historyList');
+            const item = document.createElement('div');
+            item.className = 'history-item';
+            item.innerHTML = text;
+            container.appendChild(item);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        // Card Selection Modal
+        let modalMode = 'hero';
+        let selectedCards = [];
+
+        function showCardModal(mode) {
+            modalMode = mode;
+            selectedCards = [];
+            
+            document.getElementById('modalTitle').textContent = 
+                mode === 'hero' ? '选择 Hero 手牌 (选择2张)' : '设置公共牌 (最多5张)';
+            
+            renderModalCardGrid();
+            document.getElementById('cardModal').classList.add('show');
+        }
+
+        function hideCardModal() {
+            document.getElementById('cardModal').classList.remove('show');
+        }
+
+        function renderModalCardGrid() {
+            const container = document.getElementById('modalCardGrid');
+            container.innerHTML = '';
+            
+            const grid = document.createElement('div');
+            grid.className = 'card-select-grid';
+            
+            SUITS.forEach(suit => {
+                RANKS.forEach(rank => {
+                    const card = `${rank}${suit}`;
+                    const isRed = suit === '♥' || suit === '♦';
+                    const isUsed = gameState.usedCards.has(card);
+                    const isSelected = selectedCards.includes(card);
+                    
+                    const cell = document.createElement('div');
+                    const suitClass = suit === '♠' ? 'spade' : suit === '♥' ? 'heart' : 
+                                      suit === '♦' ? 'diamond' : 'club';
+                    cell.className = `card-select-cell ${suitClass} ${isUsed ? 'used' : ''} ${isSelected ? 'selected' : ''}`;
+                    cell.textContent = card;
+                    
+                    if (!isUsed) {
+                        cell.addEventListener('click', () => toggleCardSelection(card));
+                    }
+                    
+                    grid.appendChild(cell);
+                });
+            });
+            
+            container.appendChild(grid);
+        }
+
+        function toggleCardSelection(card) {
+            const maxCards = modalMode === 'hero' ? 2 : 5;
+            const index = selectedCards.indexOf(card);
+            
+            if (index > -1) {
+                selectedCards.splice(index, 1);
+            } else if (selectedCards.length < maxCards) {
+                selectedCards.push(card);
+            }
+            
+            renderModalCardGrid();
+        }
+
+        function confirmCardSelection() {
+            if (selectedCards.length === 0) {
+                hideCardModal();
+                return;
+            }
+            
+            if (modalMode === 'hero') {
+                if (selectedCards.length !== 2) {
+                    alert('请选择2张手牌');
+                    return;
+                }
+                
+                gameState.heroCards.forEach(c => gameState.usedCards.delete(c));
+                
+                gameState.heroCards = [...selectedCards];
+                selectedCards.forEach(card => gameState.usedCards.add(card));
+                
+                const heroPlayer = gameState.players.find(p => p.isHero);
+                if (heroPlayer) {
+                    heroPlayer.cards = [...selectedCards];
+                }
+                
+                updateHeroCardsDisplay();
+                renderPlayersOnTable();
+                renderStrategyMatrix();
+            } else {
+                gameState.communityCards.forEach(c => gameState.usedCards.delete(c));
+                
+                gameState.communityCards = [...selectedCards];
+                selectedCards.forEach(card => gameState.usedCards.add(card));
+                updateCommunityCardsDisplay();
+                
+                // Update phase based on board cards
+                if (gameState.communityCards.length === 3) {
+                    gameState.phase = 'flop';
+                } else if (gameState.communityCards.length === 4) {
+                    gameState.phase = 'turn';
+                } else if (gameState.communityCards.length === 5) {
+                    gameState.phase = 'river';
+                }
+                document.getElementById('phaseIndicator').textContent = gameState.phase.toUpperCase();
+            }
+            
+            hideCardModal();
+            updateUI();
+        }
+
+        function updateHeroCardsDisplay() {
+            const display = document.getElementById('heroCardsDisplay');
+            if (gameState.heroCards.length === 2) {
+                display.innerHTML = gameState.heroCards.map(card => {
+                    const isRed = card.includes('♥') || card.includes('♦');
+                    return `<div class="hero-card ${isRed ? 'red' : 'black'}">${card}</div>`;
+                }).join('');
+            } else {
+                display.innerHTML = `
+                    <div class="hero-card empty">?</div>
+                    <div class="hero-card empty">?</div>
+                `;
+            }
+        }
+
+        function updateCommunityCardsDisplay() {
+            const cards = document.getElementById('communityCards');
+            const board = document.getElementById('boardDisplay');
+            
+            let html = '';
+            for (let i = 0; i < 5; i++) {
+                const card = gameState.communityCards[i];
+                if (card) {
+                    const isRed = card.includes('♥') || card.includes('♦');
+                    html += `<div class="community-card ${isRed ? 'red' : 'black'}">${card}</div>`;
+                } else {
+                    html += `<div class="community-card empty"></div>`;
+                }
+            }
+            cards.innerHTML = html;
+            
+            let boardHtml = '';
+            for (let i = 0; i < 5; i++) {
+                const card = gameState.communityCards[i];
+                if (card) {
+                    const isRed = card.includes('♥') || card.includes('♦');
+                    boardHtml += `<div class="board-card ${isRed ? 'red' : 'black'}">${card}</div>`;
+                } else {
+                    boardHtml += `<div class="board-card empty"></div>`;
+                }
+            }
+            board.innerHTML = boardHtml;
+        }
+
+        function resetGame() {
+            gameState.phase = 'preflop';
+            gameState.pot = 1.5;
+            gameState.currentBet = 1;
+            gameState.history = [];
+            gameState.usedCards.clear();
+            gameState.communityCards = [];
+            gameState.heroCards = [];
+            
+            document.getElementById('historyList').innerHTML = '';
+            document.getElementById('actionSequenceDisplay').style.display = 'none';
+            document.getElementById('phaseIndicator').textContent = 'PREFLOP';
+            
+            // Reset action inputs
+            const actionInputs = document.getElementById('actionInputs');
+            actionInputs.innerHTML = `
+                <div class="action-input-row">
+                    <select class="action-select player-select">
+                        <option value="">选择玩家</option>
+                    </select>
+                    <select class="action-select action-type-select">
+                        <option value="">选择行动</option>
+                        <option value="fold">Fold</option>
+                        <option value="check">Check</option>
+                        <option value="call">Call</option>
+                        <option value="raise">Raise</option>
+                        <option value="allin">All-In</option>
+                    </select>
+                    <input type="number" class="action-input amount-input" placeholder="金额" disabled>
+                    <button class="add-action-btn">+</button>
+                </div>
+            `;
+            
+            initPlayers();
+            renderPlayersOnTable();
+            renderStrategyMatrix();
+            updateHeroCardsDisplay();
+            updateCommunityCardsDisplay();
+            updateUI();
+        }
+
+        function updateUI() {
+            document.getElementById('potAmount').textContent = gameState.pot.toFixed(1);
+            document.getElementById('currentBetDisplay').textContent = gameState.currentBet.toFixed(1);
+            
+            // Calculate call amount for hero
+            const hero = gameState.players.find(p => p.isHero);
+            const callAmount = hero ? (gameState.currentBet - hero.currentBet).toFixed(1) : '0';
+            document.getElementById('callAmountDisplay').textContent = callAmount;
+            
+            // Update GTO strategy
+            updateGTOStrategy();
+        }
+
+        function updateGTOStrategy() {
+            const hero = gameState.players.find(p => p.isHero);
+            if (!hero) return;
+            
+            let handText = '选择手牌查看策略';
+            if (hero.cards.length === 2) {
+                const ranks = hero.cards.map(c => c[0]).sort((a, b) => RANKS.indexOf(a) - RANKS.indexOf(b));
+                const suits = hero.cards.map(c => c[1]);
+                const isSuited = suits[0] === suits[1];
+                
+                if (ranks[0] === ranks[1]) {
+                    handText = `${ranks[0]}${ranks[1]}`;
+                } else if (isSuited) {
+                    handText = `${ranks[0]}${ranks[1]}s`;
+                } else {
+                    handText = `${ranks[1]}${ranks[0]}o`;
+                }
+            }
+            
+            document.getElementById('strategyHandTitle').textContent = 
+                hero.cards.length === 2 ? `${handText} 策略` : '选择手牌查看策略';
+            
+            const posStrength = { 'BTN': 1, 'CO': 0.85, 'HJ': 0.7, 'UTG': 0.5, 'SB': 0.4, 'BB': 0.6 };
+            const strength = posStrength[hero.position] || 0.5;
+            
+            let handStrength = 0.3;
+            if (hero.cards.length === 2) {
+                const ranks = hero.cards.map(c => RANKS.indexOf(c[0]));
+                const isPair = ranks[0] === ranks[1];
+                const highCard = 13 - Math.min(...ranks);
+                
+                if (isPair) handStrength += 0.3;
+                handStrength += highCard / 13 * 0.3;
+            }
+            
+            const foldPct = Math.max(5, Math.min(40, 35 - handStrength * 30 - strength * 15));
+            const callPct = Math.max(20, Math.min(50, 30 + handStrength * 15 + strength * 10));
+            const raisePct = 100 - foldPct - callPct;
+            
+            document.getElementById('foldPct').textContent = foldPct.toFixed(0) + '%';
+            document.getElementById('callPct').textContent = callPct.toFixed(0) + '%';
+            document.getElementById('raisePct').textContent = raisePct.toFixed(0) + '%';
+            
+            document.getElementById('foldBar').style.width = foldPct + '%';
+            document.getElementById('callBar').style.width = callPct + '%';
+            document.getElementById('raiseBar').style.width = raisePct + '%';
+            
+            document.getElementById('evFold').textContent = '0.00 bb';
+            document.getElementById('evCall').textContent = `+${(handStrength * 2 + strength).toFixed(2)} bb`;
+            document.getElementById('evRaise').textContent = `+${(handStrength * 3 + strength * 1.5).toFixed(2)} bb`;
+        }
+
+        // Initialize on load
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
